@@ -118,7 +118,7 @@ export default function SteveBot() {
   const QUICK = ['Best deal?', 'LG fridge', 'Air fryer deals', 'Under KES 30,000']
 
   return (
-    <div className="steve-wrapper">
+    <div className="steve-wrapper" style={{ pointerEvents: 'none' }}>
       <div className="steve-chat" style={{
         transform: open ? 'scale(1) translateY(0)' : 'scale(0.85) translateY(20px)',
         opacity:   open ? 1 : 0,
@@ -164,7 +164,7 @@ export default function SteveBot() {
         </div>
       </div>
 
-      <button className="steve-fab" onClick={toggleOpen} aria-label="Chat with Steve">
+      <button className="steve-fab" style={{ pointerEvents: 'auto' }} onClick={toggleOpen} aria-label="Chat with Steve">
         <span className="fab-icon">🤖</span>
         <span className="fab-label">Ask Steve</span>
         {badge && <span className="fab-badge">1</span>}
