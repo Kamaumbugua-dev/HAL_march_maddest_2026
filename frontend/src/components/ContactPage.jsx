@@ -12,13 +12,13 @@ export default function ContactPage() {
     e.preventDefault()
     setSending(true); setError(null)
     try {
-      const res  = await fetch('/api/contact', {
+      const res  = await fetch('https://formspree.io/f/mreywqzb', {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body:    JSON.stringify(form)
       })
       const data = await res.json()
-      if (data.ok) { setSent(true); setForm({ name: '', email: '', subject: '', message: '' }) }
+      if (res.ok) { setSent(true); setForm({ name: '', email: '', subject: '', message: '' }) }
       else setError(data.error || 'Something went wrong. Please try again.')
     } catch {
       setError('Could not reach the server. Please try again later.')
