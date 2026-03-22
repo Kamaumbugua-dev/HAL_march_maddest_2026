@@ -19,49 +19,39 @@ export default function HomePage() {
   const [totalProducts,setTotalProducts]= useState(0)
   const [modalProduct, setModalProduct] = useState(null)
 
-  // Refs so we never have stale closures
   const inputRef    = useRef(null)
   const searchRef   = useRef(null)
-  const debounceRef = useRef(null)   // single debounce timer
-  const queryRef    = useRef('')     // always current query value
-  const categoryRef = useRef('All') // always current category value
+  const debounceRef = useRef(null)
+  const queryRef    = useRef('')
+  const categoryRef = useRef('All')
 
-  // Keep refs in sync
   queryRef.current    = query
   categoryRef.current = category
 
-  // ── Load initial data ──────────────────────────────────────────────────────
   useEffect(() => {
     fetch('/api/categories')
       .then(r => r.json())
-      .then(data => {
-        setCategories(data)
-        setTotalProducts(data.reduce((s, c) => s + c.cnt, 0))
-      })
+      .then(data => { setCategories(data); setTotalProducts(data.reduce((s, c) => s + c.cnt, 0)) })
       .catch(console.error)
 
     fetch('/api/products')
       .then(r => r.json())
       .then(data => {
         setAllProducts(data)
-        const top6 = [...data].sort((a, b) => b.new_discount - a.new_discount).slice(0, 6)
-        setFeatured(top6)
+        setFeatured([...data].sort((a, b) => b.new_discount - a.new_discount).slice(0, 6))
       })
       .catch(console.error)
 
     if (window.innerWidth >= 768) inputRef.current?.focus()
 
-    const clickOff = e => {
-      if (!searchRef.current?.contains(e.target)) setShowSugg(false)
-    }
+    const clickOff = e => { if (!searchRef.current?.contains(e.target)) setShowSugg(false) }
     document.addEventListener('mousedown', clickOff)
     return () => document.removeEventListener('mousedown', clickOff)
   }, [])
 
-  // ── Core search function (reads from refs — never stale) ──────────────────
   const executeSearch = useCallback(async (q, cat) => {
-    const trimQ   = (q   ?? queryRef.current).trim()
-    const useCat  = (cat ?? categoryRef.current)
+    const trimQ  = (q   ?? queryRef.current).trim()
+    const useCat = (cat ?? categoryRef.current)
 
     if (!trimQ && useCat === 'All') {
       setSearched(false); setResults([]); setStatus(null)
@@ -80,106 +70,79 @@ export default function HomePage() {
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
-
       setResults(data.results ?? [])
-      if (data.message) {
-        const prefix = data.in_offer === true  ? '✅ '
-                     : data.in_offer === false ? '❌ '
-                     : 'ℹ️ '
-        setStatus({ msg: prefix + data.message, type: data.in_offer === true ? 'success' : data.in_offer === false ? 'error' : 'info' })
-      } else {
-        setStatus(null)
-      }
+      setStatus(data.in_offer !== null ? { found: data.in_offer, count: data.count, query: trimQ } : null)
     } catch (err) {
       console.error('Search error:', err)
-      setStatus({ msg: '⚠️ Could not reach the server. Is Flask running on port 5000?', type: 'error' })
+      setStatus({ found: false, count: 0, query: trimQ })
     } finally {
       setLoading(false)
     }
-  }, []) // no dependencies — uses refs instead
+  }, [])
 
-  // ── Debounced version — uses a single ref timer ────────────────────────────
   const debouncedSearch = useCallback((q, cat) => {
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => executeSearch(q, cat), 320)
   }, [executeSearch])
 
-  // ── Input change ───────────────────────────────────────────────────────────
   const handleInput = e => {
     const q = e.target.value
     setQuery(q)
-
-    // Autocomplete suggestions (local filter, instant)
     if (q.length >= 2) {
       const ql  = q.toLowerCase()
-      const top = allProducts
-        .filter(p =>
-          p.item_name.toLowerCase().includes(ql) ||
-          p.brand.toLowerCase().includes(ql)     ||
-          p.item_code.includes(ql)
-        )
-        .slice(0, 6)
+      const top = allProducts.filter(p =>
+        p.item_name.toLowerCase().includes(ql) ||
+        p.brand.toLowerCase().includes(ql)     ||
+        p.item_code.includes(ql)
+      ).slice(0, 6)
       setSuggestions(top)
       setShowSugg(top.length > 0)
     } else {
-      setSuggestions([])
-      setShowSugg(false)
+      setSuggestions([]); setShowSugg(false)
     }
-
     debouncedSearch(q, categoryRef.current)
   }
 
   const handleKeyDown = e => {
     if (e.key === 'Enter')  { clearTimeout(debounceRef.current); executeSearch(query, category) }
-    if (e.key === 'Escape') { setShowSugg(false) }
+    if (e.key === 'Escape') setShowSugg(false)
   }
 
-  // ── Search button click ────────────────────────────────────────────────────
   const handleSearchClick = () => {
     clearTimeout(debounceRef.current)
     executeSearch(queryRef.current, categoryRef.current)
   }
 
-  // ── Category tab ───────────────────────────────────────────────────────────
   const handleCategory = cat => {
-    setCategory(cat)
-    categoryRef.current = cat
+    setCategory(cat); categoryRef.current = cat
     clearTimeout(debounceRef.current)
     executeSearch(queryRef.current, cat)
   }
 
-  // ── Suggestion pick ────────────────────────────────────────────────────────
   const pickSuggestion = name => {
-    setQuery(name)
-    queryRef.current = name
+    setQuery(name); queryRef.current = name
     setShowSugg(false)
     clearTimeout(debounceRef.current)
     executeSearch(name, categoryRef.current)
   }
 
-  // ── Clear ──────────────────────────────────────────────────────────────────
   const clearSearch = () => {
     clearTimeout(debounceRef.current)
-    setQuery('')
-    setCategory('All')
-    queryRef.current    = ''
-    categoryRef.current = 'All'
-    setResults([])
-    setStatus(null)
-    setSearched(false)
-    setShowSugg(false)
+    setQuery(''); setCategory('All')
+    queryRef.current = ''; categoryRef.current = 'All'
+    setResults([]); setStatus(null); setSearched(false); setShowSugg(false)
     inputRef.current?.focus()
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // Split results: exact match (score >= 82) vs related
+  const exactMatches  = results.filter(r => r.score >= 82)
+  const relatedItems  = results.filter(r => r.score <  82)
+
   return (
     <>
-      {/* Modal */}
-      {modalProduct && (
-        <ProductModal product={modalProduct} onClose={() => setModalProduct(null)} />
-      )}
+      {modalProduct && <ProductModal product={modalProduct} onClose={() => setModalProduct(null)} />}
 
-      {/* HERO ────────────────────────────────────────────────────────────── */}
+      {/* HERO */}
       <section className="hero">
         <div className="hero-bg-shapes">
           <div className="shape s1" /><div className="shape s2" /><div className="shape s3" />
@@ -194,7 +157,6 @@ export default function HomePage() {
             Maddest Offers — up to <strong>47% OFF</strong>.
           </p>
 
-          {/* Search box */}
           <div className="search-container" ref={searchRef}>
             <div className="search-box">
               <span className="search-icon">🔍</span>
@@ -213,20 +175,16 @@ export default function HomePage() {
               {query && (
                 <button className="search-clear" onClick={clearSearch} aria-label="Clear">✕</button>
               )}
-              <button className="search-btn" onClick={handleSearchClick}>
+              <button className="search-btn search-btn-glow" onClick={handleSearchClick}>
                 🔍 Search
               </button>
             </div>
 
-            {/* Autocomplete */}
             {showSugg && suggestions.length > 0 && (
               <div className="suggestions">
                 {suggestions.map(p => (
-                  <div
-                    key={p.item_code}
-                    className="sugg-item"
-                    onMouseDown={e => { e.preventDefault(); pickSuggestion(p.item_name) }}
-                  >
+                  <div key={p.item_code} className="sugg-item"
+                    onMouseDown={e => { e.preventDefault(); pickSuggestion(p.item_name) }}>
                     <span>{p.category_icon}</span>
                     <span>{p.item_name}</span>
                     <span className="sugg-cat">{p.brand}</span>
@@ -236,7 +194,6 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Stats */}
           <div className="hero-stats">
             <div className="stat-chip"><strong>{totalProducts}</strong> Products on Offer</div>
             <div className="stat-chip"><strong>Up to 47%</strong> Discount</div>
@@ -245,22 +202,17 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CATEGORY NAV ───────────────────────────────────────────────────── */}
+      {/* CATEGORY NAV */}
       <section className="cat-section">
         <div className="cat-nav">
-          <button
-            className={`cat-btn ${category === 'All' ? 'active' : ''}`}
-            onClick={() => handleCategory('All')}
-          >
+          <button className={`cat-btn ${category === 'All' ? 'active' : ''}`} onClick={() => handleCategory('All')}>
             <span className="cat-icon">🛍️</span>
             <span className="cat-name">All Deals</span>
           </button>
           {categories.map(c => (
-            <button
-              key={c.category}
+            <button key={c.category}
               className={`cat-btn ${category === c.category ? 'active' : ''}`}
-              onClick={() => handleCategory(c.category)}
-            >
+              onClick={() => handleCategory(c.category)}>
               <span className="cat-icon">{c.category_icon}</span>
               <span className="cat-name">{c.category}</span>
               <span className="cat-count">{c.cnt}</span>
@@ -269,65 +221,111 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* RESULTS ─────────────────────────────────────────────────────────── */}
+      {/* RESULTS */}
       <section className="results-section">
 
-        {/* Status banner */}
-        {status && (
-          <div className={`status-banner ${status.type}`}>{status.msg}</div>
-        )}
-
-        {/* Loading */}
+        {/* Loading animation */}
         {loading && (
-          <div className="spinner-wrap">
-            <div className="spinner" />
-            <p>Searching deals…</p>
+          <div className="search-loading">
+            <div className="search-pulse">
+              <div className="pulse-ring" />
+              <div className="pulse-ring" style={{ animationDelay: '.15s' }} />
+              <div className="pulse-ring" style={{ animationDelay: '.3s' }} />
+              <span className="pulse-icon">🔍</span>
+            </div>
+            <p className="search-loading-text">Scanning the Maddest Offers…</p>
           </div>
         )}
 
-        {/* Results grid */}
-        {!loading && searched && results.length > 0 && (
-          <div className="products-grid">
-            {results.map((item, i) => (
-              <ProductCard
-                key={item.product.item_code + i}
-                product={item.product}
-                score={item.score}
-                delay={i}
-                onClick={() => setModalProduct(item.product)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Empty */}
+        {/* NOT ON OFFER */}
         {!loading && searched && results.length === 0 && (
-          <div className="empty-state">
-            <div className="empty-icon">🔎</div>
-            <h3>Not in the Maddest Offers</h3>
-            <p>This product isn't on offer right now. Try a different model name or browse by category.</p>
-            <button className="btn-primary" onClick={clearSearch}>Browse All Deals</button>
+          <div className="not-on-offer">
+            <div className="not-offer-badge">❌ SORRY, ITEM NOT ON OFFER</div>
+            <h3 className="not-offer-title">
+              {status?.query ? `"${status.query}"` : 'This item'} is not in the Maddest Offers
+            </h3>
+            <p className="not-offer-sub">
+              This product isn't part of the current promotion. Browse the categories below for available deals,
+              or ask Steve for alternatives!
+            </p>
+            <div className="not-offer-actions">
+              <button className="btn-primary" onClick={clearSearch}>Browse All Deals</button>
+              <button className="btn-outline" onClick={() => document.querySelector('.steve-fab')?.click()}>
+                🤖 Ask Steve for alternatives
+              </button>
+            </div>
+            <div className="not-offer-cats">
+              <p>Try searching in these categories:</p>
+              <div className="cat-chips">
+                {categories.slice(0, 6).map(c => (
+                  <button key={c.category} className="cat-chip-btn"
+                    onClick={() => { clearSearch(); handleCategory(c.category) }}>
+                    {c.category_icon} {c.category}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Welcome / featured */}
+        {/* EXACT MATCH — ACTIVE */}
+        {!loading && searched && exactMatches.length > 0 && (
+          <div className="active-section">
+            <div className="active-header">
+              <span className="active-badge">● ACTIVE</span>
+              <h2 className="active-title">
+                {exactMatches.length === 1 ? 'Exact Match Found' : `${exactMatches.length} Exact Matches Found`}
+              </h2>
+              <p className="active-sub">This item is on the Maddest Offer! Click the card for full details.</p>
+            </div>
+            <div className="products-grid">
+              {exactMatches.map((item, i) => (
+                <ProductCard
+                  key={item.product.item_code + i}
+                  product={item.product}
+                  score={item.score}
+                  delay={i}
+                  isExact
+                  onClick={() => setModalProduct(item.product)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* RELATED RESULTS */}
+        {!loading && searched && relatedItems.length > 0 && (
+          <div className="related-section">
+            <h3 className="related-title">
+              {exactMatches.length > 0 ? '📦 Related Products' : `📦 ${relatedItems.length} Results Found`}
+            </h3>
+            <div className="products-grid">
+              {relatedItems.map((item, i) => (
+                <ProductCard
+                  key={item.product.item_code + i}
+                  product={item.product}
+                  score={item.score}
+                  delay={i}
+                  onClick={() => setModalProduct(item.product)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* WELCOME / FEATURED */}
         {!searched && !loading && (
           <div className="welcome-state">
             <h2 className="section-title">🔥 Hottest Deals Right Now</h2>
             <p className="section-sub">Top picks sorted by biggest discount — click any card to see full details:</p>
             <div className="products-grid">
               {featured.map((p, i) => (
-                <ProductCard
-                  key={p.item_code}
-                  product={p}
-                  score={100}
-                  delay={i}
-                  onClick={() => setModalProduct(p)}
-                />
+                <ProductCard key={p.item_code} product={p} score={100} delay={i} onClick={() => setModalProduct(p)} />
               ))}
             </div>
           </div>
         )}
+
       </section>
     </>
   )

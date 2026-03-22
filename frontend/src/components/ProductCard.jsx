@@ -1,13 +1,13 @@
 const fmt = n => `KES ${Number(n).toLocaleString('en-KE', { minimumFractionDigits: 0 })}`
 
-export default function ProductCard({ product, score, delay, onClick }) {
+export default function ProductCard({ product, score, delay, isExact, onClick }) {
   const savings = product.sale_rrp - product.new_promo_rrp
   const pct     = Math.min(Math.round(score ?? 100), 100)
   const showBar = score !== undefined && score < 100
 
   return (
     <div
-      className="product-card"
+      className={`product-card${isExact ? ' exact-match' : ''}`}
       style={{ animationDelay: `${delay * 0.06}s` }}
       onClick={onClick}
       role="button"
