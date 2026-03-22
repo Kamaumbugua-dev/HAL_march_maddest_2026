@@ -356,23 +356,27 @@ def api_contact():
         return jsonify({'ok': False, 'error': 'Mail service not configured.'}), 503
 
     try:
-        import urllib.request, json as _json
+        import urllib.request as _ur, urllib.error as _ue, json as _json
         payload = _json.dumps({
-            'from':    'Maddest Offers <onboarding@resend.dev>',
-            'to':      ['axonlattice@gmail.com'],
+            'from':     'Maddest Offers <onboarding@resend.dev>',
+            'to':       ['axonlattice@gmail.com'],
             'reply_to': email,
-            'subject': f'[Contact] {subject} — from {name}',
-            'html':    (f'<p><strong>From:</strong> {name} ({email})</p>'
-                        f'<p><strong>Subject:</strong> {subject}</p>'
-                        f'<hr><p>{message.replace(chr(10), "<br>")}</p>'),
+            'subject':  f'[Contact] {subject} — from {name}',
+            'html':     (f'<p><strong>From:</strong> {name} ({email})</p>'
+                         f'<p><strong>Subject:</strong> {subject}</p>'
+                         f'<hr><p>{message.replace(chr(10), "<br>")}</p>'),
         }).encode()
-        req = urllib.request.Request(
+        req = _ur.Request(
             'https://api.resend.com/emails',
             data=payload,
             headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
         )
-        urllib.request.urlopen(req, timeout=10)
-        return jsonify({'ok': True})
+        try:
+            _ur.urlopen(req, timeout=10)
+            return jsonify({'ok': True})
+        except _ue.HTTPError as http_err:
+            body = http_err.read().decode('utf-8', errors='replace')
+            return jsonify({'ok': False, 'error': f'Resend error {http_err.code}: {body}'}), 500
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
