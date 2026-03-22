@@ -13,8 +13,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 # ─── Setup ────────────────────────────────────────────────────────────────────
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
-DB_PATH    = os.path.join(BASE_DIR, 'march_madness.db')
-REACT_DIR  = os.path.join(BASE_DIR, 'static', 'react')   # Vite build output
+DB_PATH    = os.environ.get('DB_PATH', os.path.join(BASE_DIR, 'march_madness.db'))
+REACT_DIR  = os.path.join(BASE_DIR, 'frontend', 'dist')  # Vite build output
 
 app = Flask(__name__, static_folder=None)   # disable default static handling
 

@@ -11,15 +11,13 @@ build/
 .venv/
 venv/
 
-# SQLite database (generated at build time from Excel)
-*.db
-
 # Node
 frontend/node_modules/
 frontend/.vite/
 
 # React build output (generated during deploy)
 static/react/
+frontend/dist/
 
 # OS
 .DS_Store
