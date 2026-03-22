@@ -359,7 +359,7 @@ def api_contact():
         import urllib.request, json as _json
         payload = _json.dumps({
             'from':    'Maddest Offers <onboarding@resend.dev>',
-            'to':      ['stevenk710@gmail.com'],
+            'to':      ['axonlattice@gmail.com'],
             'reply_to': email,
             'subject': f'[Contact] {subject} — from {name}',
             'html':    (f'<p><strong>From:</strong> {name} ({email})</p>'
