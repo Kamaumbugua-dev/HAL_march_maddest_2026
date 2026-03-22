@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: maddest-offers
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt &&
+      python init_db.py &&
+      cd frontend &&
+      npm install &&
+      npm run build &&
+      cd ..
+    startCommand: gunicorn app:app --workers 2 --bind 0.0.0.0:$PORT --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: NODE_VERSION
+        value: 20.0.0
